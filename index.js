@@ -215,33 +215,69 @@ app.delete("/cart", (req, res) => {
         }
         return;
       }
-      res.status(200).json({msg: "Item deleted from cart."});
+      res.status(200).json({ msg: "Item deleted from cart." });
     }
   );
 });
 
 //TODO
+//Set up checkout endpoint
+//post  /cart/checkout
 
+app.post("/cart/checkout", async (req, res) => {
+  const { user_id } = req.body;
+  try {
+    const results = await pool.query(
+      "SELECT * FROM users_carts WHERE user_id = $1",
+      [user_id]
+    );
+    const cart_checkout = results.rows;
+    console.log(cart_checkout);
 
+    //if cart is empty
+    if (!cart_checkout[0]) {
+      res.status(404).json({ msg: "No items in cart!" });
+      return;
+    }
 
+    //in a future rendition of this api, logic to handle payment processes will be inserted here
+    //if payment successful,
+    //generates order id
+    const results2 = await pool.query(
+      "INSERT INTO orders (user_id) VALUES ($1) RETURNING id",
+      [user_id]
+    );
+    const order_id = results2.rows[0].id;
+    console.log(order_id);
 
+    //add stuff from cart checkout to users orders using order id that was just made
+    await pool.query(
+      `WITH temp AS (
+          SELECT user_id, $2::uuid as order_id, product_id, product_quantity FROM users_carts
+          WHERE user_id = $1
+        )
+        INSERT INTO users_orders (user_id, order_id, product_id, product_quantity)
+        SELECT user_id, order_id, product_id, product_quantity FROM temp;`,
+      [user_id, order_id]
+    );
+    //if order is successful- clear cart
+    // //delete cart
+    await pool.query(
+      "DELETE FROM users_carts WHERE user_id = $1", [user_id]
+    );
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    res.status(200).json(cart_checkout);
+  } catch (error) {
+    if (error) {
+      if (process.env.NODE_ENV === "development") {
+        res.status(500).json({ msg: error.message, stack: error.stack });
+      } else {
+        res.status(500).json({ msg: "Error occurred!" });
+      }
+      return;
+    }
+  }
+});
 
 if (require.main === module) {
   app.listen(PORT, () => {
