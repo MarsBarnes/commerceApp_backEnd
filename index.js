@@ -220,10 +220,7 @@ app.delete("/cart", (req, res) => {
   );
 });
 
-//TODO
-//Set up checkout endpoint
-//post  /cart/checkout
-
+//checkout cart. when a cart is not empty, and payment is successful, an order is created, and cart is emptied
 app.post("/cart/checkout", async (req, res) => {
   const { user_id } = req.body;
   try {
@@ -261,7 +258,6 @@ app.post("/cart/checkout", async (req, res) => {
       [user_id, order_id]
     );
     //if order is successful- clear cart
-    // //delete cart
     await pool.query(
       "DELETE FROM users_carts WHERE user_id = $1", [user_id]
     );
@@ -278,6 +274,64 @@ app.post("/cart/checkout", async (req, res) => {
     }
   }
 });
+
+app.get("/orders", (req, res) => {
+  const { user_id } = req.body;
+  pool.query(
+    "SELECT * FROM orders WHERE user_id = $1;",
+    [user_id],
+    (error, results) => {
+      if (error) {
+        if (process.env.NODE_ENV === "development") {
+          res.status(500).json({ msg: error.message, stack: error.stack });
+        } else {
+          res.status(500).json({ msg: "Error occurred!" });
+        }
+        return;
+      }
+      const cart = results.rows;
+      console.log(results);
+      if (!cart) {
+        res.status(404).json({ msg: "No orders found!" });
+        return;
+      } else {
+        res.status(200).json(cart);
+      }
+    }
+  );
+});
+
+//TODO
+// View Orders
+// Get /api/orders/:id
+
+//after lunch go through comments in post below
+app.post("/orders", (req, res) => {
+  const { user_id, order_id } = req.body;
+  pool.query(
+    // "SELECT * FROM orders WHERE user_id = $1 AND order_id = $2;",
+    [user_id, order_id],
+    (error, results) => {
+      if (error) {
+        if (process.env.NODE_ENV === "development") {
+          res.status(500).json({ msg: error.message, stack: error.stack });
+        } else {
+          res.status(500).json({ msg: "Error occurred!" });
+        }
+        return;
+      }
+      // const cart = results.rows;
+      console.log(results);
+      if (!cart) {
+        res.status(404).json({ msg: "No orders found!" });
+        return;
+      } else {
+        // res.status(200).json(cart);
+      }
+    }
+  );
+});
+
 
 if (require.main === module) {
   app.listen(PORT, () => {

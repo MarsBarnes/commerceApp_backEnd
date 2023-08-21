@@ -1,5 +1,15 @@
 # commerceApp
 
+
+
+
+# KEY
+Completed
+<!-- TODO: -->
+
+
+
+
 # List of User actions
 <!-- Sign up with username and password. 
     Post /api/register
@@ -16,16 +26,10 @@ View cart, add to cart, delete from cart
     Get /api/cart
     Post /api/cart
     Delete /api/cart
-
-<!-- TODO: -->
-
-<!-- ----- -->
-
-
     
-<!-- Checkout cart
+Checkout cart
     Post /api/checkout
-View Orders
+<!-- View Orders
     Get /api/orders -->
 
 
