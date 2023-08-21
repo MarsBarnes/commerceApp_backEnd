@@ -144,12 +144,7 @@ app.get("/products/:id", (req, res) => {
   );
 });
 
-//TODO
-// add to cart, delete from cart
-
-//     Post /api/cart
-//     Delete /api/cart/:product_id
-
+//view all in cart
 app.get("/cart", (req, res) => {
   const { user_id } = req.body;
   pool.query(
@@ -176,51 +171,41 @@ app.get("/cart", (req, res) => {
   );
 });
 
-// RETURNING user_id, cart_id, product_id, product_quantity
-
-// //post cart by id
-// app.post("/cart/:id", (req, res) => {
-//   const { id } = req.params;
-//   const { quantity } = req.body;
-//   const {user_id} =req.session.user.id
-//   pool.query(
-//     "INSERT INTO users_carts (user_id, cart_id, product_id, product_quantity) VALUES ($1, $2, $3, $4);"[
-//       user_id, cart_id, id, quantity
-//     ],
-//     (error, results) => {
-//       if (error) {
-//         if (process.env.NODE_ENV === "development") {
-//           res.status(500).json({ msg: error.message, stack: error.stack });
-//         } else {
-//           res.status(500).json({ msg: "Error occurred!" });
-//         }
-//         return;
-//       }
-//       const product = results.rows;
-//       console.log(results);
-//       if (!product) {
-//         res.status(404).json({ msg: "No product found!" });
-//         return;
-//       } else {
-//         res.status(200).json(product);
-//       }
-//     }
-//   );
-// });
-
 //post cart by id
-app.post("/cart/:id", (req, res) => {
-  const cart_id = req.params.id;
-  const { quantity } = req.body;
-  // //Line below is causing error. need to figure out how postman gets session info. terminal shows session is created when post /login credentials succeed, but postman is not getting session data
-  // const { user_id } = req.session.user.id;
-  const {user_id} = req.body;
-  const { product_id } = req.body;
-  console.log(req.session.user);
+app.post("/cart", async (req, res) => {
+  const { product_quantity, user_id, product_id } = req.body;
+  try {
+    const results = await pool.query(
+      "SELECT id FROM carts WHERE user_id = $1;",
+      [user_id]
+    );
+    const cart_id = results.rows[0].id;
+    console.log(cart_id);
+    await pool.query(
+      `INSERT INTO users_carts (user_id, cart_id, product_id, product_quantity) VALUES ($1, $2, $3, $4)
+      ON CONFLICT (user_id, cart_id, product_id)
+      DO UPDATE SET product_quantity = EXCLUDED.product_quantity`,
+      [user_id, cart_id, product_id, product_quantity]
+    );
+    res.status(201).json({ msg: "item added to cart" });
+  } catch (error) {
+    if (error) {
+      if (process.env.NODE_ENV === "development") {
+        res.status(500).json({ msg: error.message, stack: error.stack });
+      } else {
+        res.status(500).json({ msg: "Error occurred!" });
+      }
+      return;
+    }
+  }
+});
+
+// delete from cart by id
+app.delete("/cart", (req, res) => {
+  const { user_id, product_id } = req.body;
   pool.query(
-    "INSERT INTO users_carts (user_id, cart_id, product_id, product_quantity) VALUES ($1, $2, $3, $4);"[
-      (user_id, cart_id, product_id, quantity)
-    ],
+    "DELETE FROM users_carts WHERE user_id = $1 AND product_id = $2;",
+    [user_id, product_id],
     (error, results) => {
       if (error) {
         if (process.env.NODE_ENV === "development") {
@@ -230,11 +215,33 @@ app.post("/cart/:id", (req, res) => {
         }
         return;
       }
-      const product = results.rows;
-      console.log(results);
+      res.status(200).json({msg: "Item deleted from cart."});
     }
   );
 });
+
+//TODO
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 if (require.main === module) {
   app.listen(PORT, () => {
