@@ -7,6 +7,10 @@ const { Pool } = require("pg");
 const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 
+const cors = require("cors");
+
+app.use(cors());
+
 const pool = new Pool({
   user: process.env.user,
   host: "localhost",
@@ -144,6 +148,7 @@ app.get("/products/:id", (req, res) => {
   );
 });
 
+//left off here- found out that get requests can not have a body. will need to change all get requests with bodies to have params instead. or session/cookies
 //view all in cart
 app.get("/cart", (req, res) => {
   const { user_id } = req.body;
