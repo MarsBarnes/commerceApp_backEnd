@@ -377,7 +377,39 @@ app.post("/user", (req, res) => {
 });
 
 //TODO
-//
+//Sign up with username and password.
+// INSERT INTO carts a cart uuid for the newly made user uuid. (1 to 1 relationship between cart and user.)
+app.post("/register", async (req, res) => {
+  const { firstname, lastname, email, passwordhashed, username } = req.body;
+
+  try {
+    const results = await pool.query(
+      "INSERT INTO users (firstname, lastname, email) VALUES ($1, $2, $3) RETURNING id;",
+      [firstname, lastname, email]
+    );
+    const user_id = results.rows[0].id;
+
+    await pool.query(
+      "INSERT INTO login (user_id, username, passwordhashed) VALUES ($1, $2, $3);",
+      [user_id, username, passwordhashed]
+    );
+
+    await pool.query(
+      "INSERT INTO carts (user_id) VALUES ($1);",
+      [user_id]
+    );
+    res.status(200).json("account created");
+  } catch (error) {
+    if (error) {
+      if (process.env.NODE_ENV === "development") {
+        res.status(500).json({ msg: error.message, stack: error.stack });
+      } else {
+        res.status(500).json({ msg: "Error occurred!" });
+      }
+      return;
+    }
+  }
+});
 
 if (require.main === module) {
   app.listen(PORT, () => {

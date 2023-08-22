@@ -18,9 +18,9 @@ Completed
 Sign in with username and password
     Post /api/login
 
-<!-- View and update user account
-    Get /api/users -->
-    
+View and update user account
+    Get /api/users
+
 Browse products
     Get /api/products/:id
     Get /api/products/
