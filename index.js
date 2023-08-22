@@ -60,9 +60,9 @@ app.get("/users", (req, res) => {
 //login
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
-  console.log(` SAHEFGKOWERNOGSERGJVNSOIERGNIOWERSVJG ${username}`);
+  // console.log(`${username}`);
   pool.query(
-    "SELECT id, passwordhashed FROM users WHERE username = $1;",
+    "SELECT user_id, passwordhashed, username FROM login WHERE username = $1;",
     [username],
     (error, results) => {
       if (error) {
@@ -73,8 +73,8 @@ app.post("/login", (req, res) => {
         }
         return;
       }
-      const user = results.rows[0];
-      console.log(results);
+      const user = results.rows;
+      console.log(user);
       if (!user) {
         res.status(404).json({ msg: "No user found!" });
         return;
@@ -258,9 +258,7 @@ app.post("/cart/checkout", async (req, res) => {
       [user_id, order_id]
     );
     //if order is successful- clear cart
-    await pool.query(
-      "DELETE FROM users_carts WHERE user_id = $1", [user_id]
-    );
+    await pool.query("DELETE FROM users_carts WHERE user_id = $1", [user_id]);
 
     res.status(200).json(cart_checkout);
   } catch (error) {
@@ -301,15 +299,11 @@ app.get("/orders", (req, res) => {
   );
 });
 
-//TODO
-// View Orders
-// Get /api/orders/:id
-
-//after lunch go through comments in post below
+// View Orders details by order id
 app.post("/orders", (req, res) => {
   const { user_id, order_id } = req.body;
   pool.query(
-    // "SELECT * FROM orders WHERE user_id = $1 AND order_id = $2;",
+    "SELECT * FROM users_orders WHERE user_id = $1 AND order_id = $2;",
     [user_id, order_id],
     (error, results) => {
       if (error) {
@@ -320,18 +314,70 @@ app.post("/orders", (req, res) => {
         }
         return;
       }
-      // const cart = results.rows;
+      const order = results.rows;
       console.log(results);
-      if (!cart) {
+      if (!order) {
         res.status(404).json({ msg: "No orders found!" });
         return;
       } else {
-        // res.status(200).json(cart);
+        res.status(200).json(order);
       }
     }
   );
 });
 
+// View user account
+app.get("/user", (req, res) => {
+  const { id } = req.body;
+  pool.query("SELECT * FROM users WHERE id = $1;", [id], (error, results) => {
+    if (error) {
+      if (process.env.NODE_ENV === "development") {
+        res.status(500).json({ msg: error.message, stack: error.stack });
+      } else {
+        res.status(500).json({ msg: "Error occurred!" });
+      }
+      return;
+    }
+    const user = results.rows;
+    console.log(user);
+    if (!user) {
+      res.status(404).json({ msg: "No user found!" });
+      return;
+    } else {
+      res.status(200).json(user);
+    }
+  });
+});
+
+// Update user account
+app.post("/user", (req, res) => {
+  const { firstname, lastname, email, id } = req.body;
+  pool.query(
+    "UPDATE users SET firstname = $1, lastname = $2, email= $3 WHERE id = $4;",
+    [firstname, lastname, email, id],
+    (error, results) => {
+      if (error) {
+        if (process.env.NODE_ENV === "development") {
+          res.status(500).json({ msg: error.message, stack: error.stack });
+        } else {
+          res.status(500).json({ msg: "Error occurred!" });
+        }
+        return;
+      }
+      const user = results.rows;
+      console.log(user);
+      if (!user) {
+        res.status(404).json({ msg: "Error!" });
+        return;
+      } else {
+        res.status(200).json(user);
+      }
+    }
+  );
+});
+
+//TODO
+//
 
 if (require.main === module) {
   app.listen(PORT, () => {
