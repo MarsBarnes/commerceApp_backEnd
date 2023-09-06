@@ -47,3 +47,9 @@ CREATE TABLE users_carts(
     product_quantity integer
 
 );
+
+CREATE TABLE token(
+	token UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT now()
+);

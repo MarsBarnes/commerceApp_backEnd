@@ -1,15 +1,19 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const helmet = require("helmet");
 const app = express();
 require("dotenv").config();
 const session = require("express-session");
 const { Pool } = require("pg");
-const passport = require("passport");
-const LocalStrategy = require("passport-local").Strategy;
+// const passport = require("passport");
+// const LocalStrategy = require("passport-local").Strategy;
 
 const cors = require("cors");
 
 app.use(cors());
+
+// Use Helmet! Details on the headers Helmet sets: https://helmetjs.github.io/
+app.use(helmet());
 
 const pool = new Pool({
   user: process.env.user,
@@ -31,34 +35,35 @@ app.use(
 const store = new session.MemoryStore();
 
 // session middleware
+console.log({ secret: process.env.secret });
 app.use(
   session({
     secret: process.env.secret,
     // 48hour cookie timeout
-    cookie: { maxAge: 172800000, secure: true, sameSite: "none" },
+    cookie: { maxAge: 172800000, secure: true, sameSite: false },
     resave: false,
     saveUninitialized: false,
     store,
   })
 );
 
+//ensure logged in
+// later add ensureAuthentication to the routes below that require login
+function ensureAuthentication(req, res, next) {
+  if (req.session.authenticated) {
+    return next();
+  } else {
+    res.status(403).json({ msg: "You're not authorized to view this page" });
+  }
+}
+
 //passport
-app.use(passport.initialize());
-app.use(passport.session());
+// app.use(passport.initialize());
+// app.use(passport.session());
 
 //root
 app.get("/", (req, res) => {
   res.send("Hello Worldtdtrdr");
-});
-
-//users
-app.get("/users", (req, res) => {
-  pool.query("SELECT * FROM users;", (error, results) => {
-    if (error) {
-      throw error;
-    }
-    res.status(200).json(results.rows);
-  });
 });
 
 //login
@@ -77,20 +82,39 @@ app.post("/login", (req, res) => {
         }
         return;
       }
-      const user = results.rows;
+      const user = results.rows[0];
       console.log(user);
       if (!user) {
         res.status(404).json({ msg: "No user found!" });
         return;
       }
       if (user.passwordhashed === password) {
-        req.session.authenticated = true;
-        req.session.user = {
-          id: user.id,
-          username,
-        };
-        console.log(req.session);
-        res.status(200).json({ msg: "Success" });
+        pool.query(
+          "INSERT INTO token (user_id) VALUES ($1) RETURNING *;",
+          [user.user_id],
+          (error, results) => {
+            if (error) {
+              if (process.env.NODE_ENV === "development") {
+                res
+                  .status(500)
+                  .json({ msg: error.message, stack: error.stack });
+              } else {
+                res.status(500).json({ msg: "Error occurred!" });
+              }
+              return;
+            }
+            req.session.authenticated = true;
+            req.session.user = {
+              id: user.user_id,
+              username,
+              token: results.rows[0].token,
+            };
+            console.log(req.session);
+            res
+              .status(200)
+              .json({ msg: "Success", token: results.rows[0].token });
+          }
+        );
       } else {
         res.status(403).json({ msg: "Bad Credentials" });
       }
@@ -148,7 +172,7 @@ app.get("/products/:id", (req, res) => {
   );
 });
 
-//left off here- found out that get requests can not have a body. will need to change all get requests with bodies to have params instead. or session/cookies
+//get requests can not have a body. will need to change all get requests with bodies to have params instead. or session/cookies
 //view all in cart
 app.get("/cart", (req, res) => {
   const { user_id } = req.body;
@@ -278,6 +302,7 @@ app.post("/cart/checkout", async (req, res) => {
   }
 });
 
+//view all orders
 app.get("/orders", (req, res) => {
   const { user_id } = req.body;
   pool.query(
@@ -292,18 +317,19 @@ app.get("/orders", (req, res) => {
         }
         return;
       }
-      const cart = results.rows;
+      const orders = results.rows;
       console.log(results);
-      if (!cart) {
+      if (!orders) {
         res.status(404).json({ msg: "No orders found!" });
         return;
       } else {
-        res.status(200).json(cart);
+        res.status(200).json(orders);
       }
     }
   );
 });
 
+//make this not a post, maybe a get?
 // View Orders details by order id
 app.post("/orders", (req, res) => {
   const { user_id, order_id } = req.body;
@@ -375,13 +401,14 @@ app.post("/user", (req, res) => {
         res.status(404).json({ msg: "Error!" });
         return;
       } else {
-        res.status(200).json(user);
+        res.status(200).json({ msg: "Account Updated!" });
       }
     }
   );
 });
 
-//TODO
+//todo
+//add salt and hash
 //Sign up with username and password.
 // INSERT INTO carts a cart uuid for the newly made user uuid. (1 to 1 relationship between cart and user.)
 app.post("/register", async (req, res) => {
@@ -399,11 +426,8 @@ app.post("/register", async (req, res) => {
       [user_id, username, passwordhashed]
     );
 
-    await pool.query(
-      "INSERT INTO carts (user_id) VALUES ($1);",
-      [user_id]
-    );
-    res.status(200).json("account created");
+    await pool.query("INSERT INTO carts (user_id) VALUES ($1);", [user_id]);
+    res.status(200).json({ msg: "Account created" });
   } catch (error) {
     if (error) {
       if (process.env.NODE_ENV === "development") {
