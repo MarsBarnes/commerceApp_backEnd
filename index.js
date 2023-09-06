@@ -50,8 +50,37 @@ app.use(
 //ensure logged in
 // later add ensureAuthentication to the routes below that require login
 function ensureAuthentication(req, res, next) {
-  if (req.session.authenticated) {
-    return next();
+  const bearerHeader = req.headers.authorization;
+  if (bearerHeader) {
+    console.log("bearerHeader", bearerHeader);
+    const token = bearerHeader.replace(/^Bearer /i, "");
+    console.log("token", token);
+    pool.query(
+      "SELECT user_id, created_at FROM token WHERE token = $1::uuid",
+      [token],
+      (error, results) => {
+        if (error) {
+          if (process.env.NODE_ENV === "development") {
+            res.status(500).json({ msg: error.message, stack: error.stack });
+          } else {
+            res.status(500).json({ msg: "Error occurred!" });
+          }
+          return;
+        }
+
+        if (results.rows.length !== 1) {
+          res
+            .status(403)
+            .json({ msg: "You're not authorized to view this page" });
+          return;
+        }
+
+        const user_id = results.rows[0].user_id;
+        console.log("user_id", user_id);
+        req.user_id = user_id;
+        next();
+      }
+    );
   } else {
     res.status(403).json({ msg: "You're not authorized to view this page" });
   }
@@ -201,15 +230,17 @@ app.get("/cart", (req, res) => {
 });
 
 //post cart by id
-app.post("/cart", async (req, res) => {
-  const { product_quantity, user_id, product_id } = req.body;
+app.post("/cart", ensureAuthentication, async (req, res) => {
+  const { user_id } = req;
+  const { product_quantity, product_id } = req.body;
   try {
     const results = await pool.query(
       "SELECT id FROM carts WHERE user_id = $1;",
       [user_id]
     );
     const cart_id = results.rows[0].id;
-    console.log(cart_id);
+    console.log("cart_id", cart_id);
+    console.log([user_id, cart_id, product_id, product_quantity]);
     await pool.query(
       `INSERT INTO users_carts (user_id, cart_id, product_id, product_quantity) VALUES ($1, $2, $3, $4)
       ON CONFLICT (user_id, cart_id, product_id)
@@ -303,8 +334,8 @@ app.post("/cart/checkout", async (req, res) => {
 });
 
 //view all orders
-app.get("/orders", (req, res) => {
-  const { user_id } = req.body;
+app.get("/orders", ensureAuthentication, (req, res) => {
+  const { user_id } = req;
   pool.query(
     "SELECT * FROM orders WHERE user_id = $1;",
     [user_id],
