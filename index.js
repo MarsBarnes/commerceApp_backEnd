@@ -203,10 +203,13 @@ app.get("/products/:id", (req, res) => {
 
 //get requests can not have a body. will need to change all get requests with bodies to have params instead. or session/cookies
 //view all in cart
-app.get("/cart", (req, res) => {
-  const { user_id } = req.body;
+app.get("/cart", ensureAuthentication, (req, res) => {
+  const { user_id } = req;
   pool.query(
-    "SELECT * FROM users_carts WHERE user_id = $1;",
+    `SELECT users_carts.user_id, users_carts.product_id, users_carts.cart_id, users_carts.product_quantity, products.product_name, products.product_description, products.color, products.quantity_available, products.price
+    FROM users_carts
+    INNER JOIN products ON users_carts.product_id = products.id
+    WHERE users_carts.user_id = $1;`,
     [user_id],
     (error, results) => {
       if (error) {
@@ -261,8 +264,11 @@ app.post("/cart", ensureAuthentication, async (req, res) => {
 });
 
 // delete from cart by id
-app.delete("/cart", (req, res) => {
-  const { user_id, product_id } = req.body;
+app.delete("/cart/:product_id", ensureAuthentication, (req, res) => {
+  const { user_id } = req;
+  const { product_id } = req.params;
+  console.log("user_id", user_id);
+  console.log("product_id", product_id);
   pool.query(
     "DELETE FROM users_carts WHERE user_id = $1 AND product_id = $2;",
     [user_id, product_id],
@@ -281,8 +287,8 @@ app.delete("/cart", (req, res) => {
 });
 
 //checkout cart. when a cart is not empty, and payment is successful, an order is created, and cart is emptied
-app.post("/cart/checkout", async (req, res) => {
-  const { user_id } = req.body;
+app.post("/cart/checkout", ensureAuthentication, async (req, res) => {
+  const { user_id } = req;
   try {
     const results = await pool.query(
       "SELECT * FROM users_carts WHERE user_id = $1",
@@ -362,8 +368,9 @@ app.get("/orders", ensureAuthentication, (req, res) => {
 
 //make this not a post, maybe a get?
 // View Orders details by order id
-app.post("/orders", (req, res) => {
-  const { user_id, order_id } = req.body;
+app.post("/orders", ensureAuthentication, (req, res) => {
+  const { order_id } = req.body;
+  const { user_id } = req;
   pool.query(
     "SELECT * FROM users_orders WHERE user_id = $1 AND order_id = $2;",
     [user_id, order_id],
@@ -389,8 +396,9 @@ app.post("/orders", (req, res) => {
 });
 
 // View user account
-app.get("/user", (req, res) => {
-  const { id } = req.body;
+app.get("/user", ensureAuthentication, (req, res) => {
+  //should this be  user_id? it was originally id, but i didnt change it it but thoughs you know
+  const { id } = req;
   pool.query("SELECT * FROM users WHERE id = $1;", [id], (error, results) => {
     if (error) {
       if (process.env.NODE_ENV === "development") {
@@ -412,7 +420,8 @@ app.get("/user", (req, res) => {
 });
 
 // Update user account
-app.post("/user", (req, res) => {
+app.post("/user", ensureAuthentication, (req, res) => {
+  // const { user_id } = req; idk if id is right or if it should be changed. come back to this
   const { firstname, lastname, email, id } = req.body;
   pool.query(
     "UPDATE users SET firstname = $1, lastname = $2, email= $3 WHERE id = $4;",
