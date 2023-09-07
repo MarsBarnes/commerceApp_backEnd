@@ -398,25 +398,34 @@ app.post("/orders", ensureAuthentication, (req, res) => {
 // View user account
 app.get("/user", ensureAuthentication, (req, res) => {
   //should this be  user_id? it was originally id, but i didnt change it it but thoughs you know
-  const { id } = req;
-  pool.query("SELECT * FROM users WHERE id = $1;", [id], (error, results) => {
-    if (error) {
-      if (process.env.NODE_ENV === "development") {
-        res.status(500).json({ msg: error.message, stack: error.stack });
-      } else {
-        res.status(500).json({ msg: "Error occurred!" });
+  const { user_id } = req;
+  // trying to use token as user id which is what is fucked up
+  pool.query(
+    `SELECT id, firstname, lastname, email, username
+      FROM users
+      INNER JOIN token ON token.user_id = users.id
+      INNER JOIN login ON login.user_id = users.id
+      WHERE id = $1 ;`,
+    [user_id],
+    (error, results) => {
+      if (error) {
+        if (process.env.NODE_ENV === "development") {
+          res.status(500).json({ msg: error.message, stack: error.stack });
+        } else {
+          res.status(500).json({ msg: "Error occurred!" });
+        }
+        return;
       }
-      return;
+      const user = results.rows[0];
+      console.log("results: " + user);
+      if (!user) {
+        res.status(404).json({ msg: "No user found!" });
+        return;
+      } else {
+        res.status(200).json(user);
+      }
     }
-    const user = results.rows;
-    console.log(user);
-    if (!user) {
-      res.status(404).json({ msg: "No user found!" });
-      return;
-    } else {
-      res.status(200).json(user);
-    }
-  });
+  );
 });
 
 // Update user account
