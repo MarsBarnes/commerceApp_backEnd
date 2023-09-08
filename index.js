@@ -397,9 +397,7 @@ app.post("/orders", ensureAuthentication, (req, res) => {
 
 // View user account
 app.get("/user", ensureAuthentication, (req, res) => {
-  //should this be  user_id? it was originally id, but i didnt change it it but thoughs you know
   const { user_id } = req;
-  // trying to use token as user id which is what is fucked up
   pool.query(
     `SELECT id, firstname, lastname, email, username
       FROM users
@@ -430,11 +428,19 @@ app.get("/user", ensureAuthentication, (req, res) => {
 
 // Update user account
 app.post("/user", ensureAuthentication, (req, res) => {
-  // const { user_id } = req; idk if id is right or if it should be changed. come back to this
-  const { firstname, lastname, email, id } = req.body;
+  const { user_id } = req;
+  const { firstname, lastname, email, username } = req.body;
   pool.query(
-    "UPDATE users SET firstname = $1, lastname = $2, email= $3 WHERE id = $4;",
-    [firstname, lastname, email, id],
+    //  update the following to change frirstname, lastname, email in users table given info passed via user_id and req.body
+    `
+UPDATE users
+SET
+  firstname = $2,
+  lastname = $3,
+  email = $4
+WHERE users.id = $1
+`,
+    [user_id, firstname, lastname, email],
     (error, results) => {
       if (error) {
         if (process.env.NODE_ENV === "development") {
@@ -444,14 +450,34 @@ app.post("/user", ensureAuthentication, (req, res) => {
         }
         return;
       }
-      const user = results.rows;
-      console.log(user);
-      if (!user) {
-        res.status(404).json({ msg: "Error!" });
-        return;
-      } else {
-        res.status(200).json({ msg: "Account Updated!" });
-      }
+      pool.query(
+        //  update the following to change username in login table given user_ud passed via req
+        `
+UPDATE login
+SET
+  username = $1
+WHERE login.user_id = $2
+`,
+        [username, user_id],
+        (error, results) => {
+          if (error) {
+            if (process.env.NODE_ENV === "development") {
+              res.status(500).json({ msg: error.message, stack: error.stack });
+            } else {
+              res.status(500).json({ msg: "Error occurred!" });
+            }
+            return;
+          }
+          const user = results.rows;
+          console.log(user);
+          if (!user) {
+            res.status(404).json({ msg: "Error!" });
+            return;
+          } else {
+            res.status(200).json({ msg: "Account Updated!" });
+          }
+        }
+      );
     }
   );
 });
@@ -477,6 +503,25 @@ app.post("/register", async (req, res) => {
 
     await pool.query("INSERT INTO carts (user_id) VALUES ($1);", [user_id]);
     res.status(200).json({ msg: "Account created" });
+  } catch (error) {
+    if (error) {
+      if (process.env.NODE_ENV === "development") {
+        res.status(500).json({ msg: error.message, stack: error.stack });
+      } else {
+        res.status(500).json({ msg: "Error occurred!" });
+      }
+      return;
+    }
+  }
+});
+
+app.post("/logout", ensureAuthentication, async (req, res) => {
+  const { user_id } = req;
+
+  try {
+    const results = await pool.query("DELETE FROM token WHERE user_id = $1;", [
+      user_id,
+    ]);
   } catch (error) {
     if (error) {
       if (process.env.NODE_ENV === "development") {
