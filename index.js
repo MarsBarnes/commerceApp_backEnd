@@ -522,14 +522,14 @@ app.post("/logout", ensureAuthentication, async (req, res) => {
     const results = await pool.query("DELETE FROM token WHERE user_id = $1;", [
       user_id,
     ]);
+    return res.status(200).json({ msg: "Logged out successfully" });
   } catch (error) {
     if (error) {
       if (process.env.NODE_ENV === "development") {
-        res.status(500).json({ msg: error.message, stack: error.stack });
+        return res.status(500).json({ msg: error.message, stack: error.stack });
       } else {
-        res.status(500).json({ msg: "Error occurred!" });
+        return res.status(500).json({ msg: "Error occurred!" });
       }
-      return;
     }
   }
 });
