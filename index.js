@@ -307,7 +307,7 @@ app.post("/cart/checkout", ensureAuthentication, async (req, res) => {
     //if payment successful,
     //generates order id
     const results2 = await pool.query(
-      "INSERT INTO orders (user_id) VALUES ($1) RETURNING id",
+      "INSERT INTO orders (user_id) VALUES ($1) RETURNING id, created_at",
       [user_id]
     );
     const order_id = results2.rows[0].id;
@@ -368,8 +368,8 @@ app.get("/orders", ensureAuthentication, (req, res) => {
 
 //make this not a post, maybe a get?
 // View Orders details by order id
-app.post("/orders", ensureAuthentication, (req, res) => {
-  const { order_id } = req.body;
+app.get("/orders/:order_id", ensureAuthentication, (req, res) => {
+  const { order_id } = req.params;
   const { user_id } = req;
   pool.query(
     "SELECT * FROM users_orders WHERE user_id = $1 AND order_id = $2;",
