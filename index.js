@@ -372,12 +372,18 @@ app.get("/orders/:order_id", ensureAuthentication, (req, res) => {
   console.log(order_id);
   const { user_id } = req;
   pool.query(
-    `SELECT orders.*, users_orders.*
-FROM orders
-JOIN users_orders ON orders.id = users_orders.order_id
-WHERE orders.user_id = $1
-  AND orders.id = $2
-  AND users_orders.user_id = $1;
+    `WITH OrderInfo AS (
+  SELECT orders.*, users_orders.*
+  FROM orders
+  JOIN users_orders ON orders.id = users_orders.order_id
+  WHERE orders.user_id = $1
+    AND orders.id = $2
+    AND users_orders.user_id = $1
+)
+
+SELECT OrderInfo.*, products.*
+FROM OrderInfo
+JOIN products ON OrderInfo.product_id = products.id;
 `,
     [user_id, order_id],
     (error, results) => {
