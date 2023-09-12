@@ -355,7 +355,6 @@ app.get("/orders", ensureAuthentication, (req, res) => {
         return;
       }
       const orders = results.rows;
-      console.log(results);
       if (!orders) {
         res.status(404).json({ msg: "No orders found!" });
         return;
@@ -370,9 +369,16 @@ app.get("/orders", ensureAuthentication, (req, res) => {
 // View Orders details by order id
 app.get("/orders/:order_id", ensureAuthentication, (req, res) => {
   const { order_id } = req.params;
+  console.log(order_id);
   const { user_id } = req;
   pool.query(
-    "SELECT * FROM users_orders WHERE user_id = $1 AND order_id = $2;",
+    `SELECT orders.*, users_orders.*
+FROM orders
+JOIN users_orders ON orders.id = users_orders.order_id
+WHERE orders.user_id = $1
+  AND orders.id = $2
+  AND users_orders.user_id = $1;
+`,
     [user_id, order_id],
     (error, results) => {
       if (error) {
