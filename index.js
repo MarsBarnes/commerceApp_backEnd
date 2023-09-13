@@ -343,7 +343,7 @@ app.post("/cart/checkout", ensureAuthentication, async (req, res) => {
 app.get("/orders", ensureAuthentication, (req, res) => {
   const { user_id } = req;
   pool.query(
-    "SELECT * FROM orders WHERE user_id = $1;",
+    "SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC;",
     [user_id],
     (error, results) => {
       if (error) {
