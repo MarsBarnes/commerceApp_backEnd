@@ -235,7 +235,7 @@ app.get("/cart", ensureAuthentication, (req, res) => {
 //post cart by id
 app.post("/cart", ensureAuthentication, async (req, res) => {
   const { user_id } = req;
-  const { product_quantity, product_id } = req.body;
+  const { product_quantity, product_id, price} = req.body;
   try {
     const results = await pool.query(
       "SELECT id FROM carts WHERE user_id = $1;",
@@ -245,10 +245,10 @@ app.post("/cart", ensureAuthentication, async (req, res) => {
     console.log("cart_id", cart_id);
     console.log([user_id, cart_id, product_id, product_quantity]);
     await pool.query(
-      `INSERT INTO users_carts (user_id, cart_id, product_id, product_quantity) VALUES ($1, $2, $3, $4)
+      `INSERT INTO users_carts (user_id, cart_id, product_id, product_quantity, price ) VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (user_id, cart_id, product_id)
-      DO UPDATE SET product_quantity = EXCLUDED.product_quantity`,
-      [user_id, cart_id, product_id, product_quantity]
+      DO UPDATE SET product_quantity = users_carts.product_quantity + EXCLUDED.product_quantity`,
+      [user_id, cart_id, product_id, product_quantity, price]
     );
     res.status(201).json({ msg: "item added to cart" });
   } catch (error) {
@@ -290,44 +290,66 @@ app.delete("/cart/:product_id", ensureAuthentication, (req, res) => {
 app.post("/cart/checkout", ensureAuthentication, async (req, res) => {
   const { user_id } = req;
   try {
-    const results = await pool.query(
-      "SELECT * FROM users_carts WHERE user_id = $1",
-      [user_id]
-    );
-    const cart_checkout = results.rows;
-    console.log(cart_checkout);
+        const results = await pool.query(
+          "SELECT * FROM users_carts WHERE user_id = $1",
+          [user_id]
+        );
+        const cart_checkout = results.rows;
+        console.log(cart_checkout);
 
-    //if cart is empty
-    if (!cart_checkout[0]) {
-      res.status(404).json({ msg: "No items in cart!" });
-      return;
-    }
+        //if cart is empty
+        if (!cart_checkout[0]) {
+          res.status(404).json({ msg: "No items in cart!" });
+          return;
+        }
 
-    //in a future rendition of this api, logic to handle payment processes will be inserted here
-    //if payment successful,
-    //generates order id
-    const results2 = await pool.query(
-      "INSERT INTO orders (user_id) VALUES ($1) RETURNING id, created_at",
-      [user_id]
-    );
-    const order_id = results2.rows[0].id;
-    console.log(order_id);
+        //calculate total
+        const array = await pool.query(
+          "SELECT * FROM users_carts WHERE user_id = $1 ;",
+          [user_id]
+        );
 
-    //add stuff from cart checkout to users orders using order id that was just made
-    await pool.query(
-      `WITH temp AS (
+        const totalArray = array.rows;
+        console.log(totalArray);
+
+        let total = 0; // Initialize total to 0
+
+        totalArray.forEach((product) => {
+          const productTotal =
+            parseFloat(product.price.slice(1)) * product.product_quantity;
+          console.log(parseFloat(product.price.slice(1)), product.product_quantity, productTotal);
+          total += productTotal;
+        });
+
+        console.log("Total Cost:", total);
+
+        //in a future rendition of this api, logic to handle payment processes will be inserted here
+        //if payment successful,
+        //generates order id
+        const results2 = await pool.query(
+          "INSERT INTO orders (user_id, total) VALUES ($1, $2) RETURNING id, created_at, total",
+          [user_id, total]
+        );
+        const order_id = results2.rows[0].id;
+        // console.log(order_id);
+
+        //add stuff from cart checkout to users orders using order id that was just made
+        await pool.query(
+          `WITH temp AS (
           SELECT user_id, $2::uuid as order_id, product_id, product_quantity FROM users_carts
           WHERE user_id = $1
         )
         INSERT INTO users_orders (user_id, order_id, product_id, product_quantity)
         SELECT user_id, order_id, product_id, product_quantity FROM temp;`,
-      [user_id, order_id]
-    );
-    //if order is successful- clear cart
-    await pool.query("DELETE FROM users_carts WHERE user_id = $1", [user_id]);
+          [user_id, order_id]
+        );
+        //if order is successful- clear cart
+        await pool.query("DELETE FROM users_carts WHERE user_id = $1", [
+          user_id,
+        ]);
 
-    res.status(200).json(cart_checkout);
-  } catch (error) {
+        res.status(200).json(cart_checkout);
+      } catch (error) {
     if (error) {
       if (process.env.NODE_ENV === "development") {
         res.status(500).json({ msg: error.message, stack: error.stack });
