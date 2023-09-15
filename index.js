@@ -5,6 +5,7 @@ const app = express();
 require("dotenv").config();
 const session = require("express-session");
 const { Pool } = require("pg");
+const bcrypt = require("bcrypt");
 // const passport = require("passport");
 // const LocalStrategy = require("passport-local").Strategy;
 
@@ -86,8 +87,8 @@ function ensureAuthentication(req, res, next) {
         const timeDifference = currentTime - tokenCreationTime;
 
         // Check if 1 hr (3,600,000 milliseconds) has elapsed
-        if (timeDifference > 10000) {
-          // if ((timeDifference > 3600000)) {
+        // if (timeDifference > 10000) {
+        if (timeDifference > 3600000) {
           //delete old token
           //use pool query
           pool.query(
@@ -136,59 +137,41 @@ app.get("/", (req, res) => {
 });
 
 //login
-app.post("/login", (req, res) => {
-  const { username, password } = req.body;
-  // console.log(`${username}`);
-  pool.query(
-    "SELECT user_id, passwordhashed, username FROM login WHERE username = $1;",
-    [username],
-    (error, results) => {
-      if (error) {
-        if (process.env.NODE_ENV === "development") {
-          res.status(500).json({ msg: error.message, stack: error.stack });
-        } else {
-          res.status(500).json({ msg: "Error occurred!" });
-        }
-        return;
-      }
-      const user = results.rows[0];
-      console.log(user);
-      if (!user) {
-        res.status(404).json({ msg: "No user found!" });
-        return;
-      }
-      if (user.passwordhashed === password) {
-        pool.query(
-          "INSERT INTO token (user_id) VALUES ($1) RETURNING *;",
-          [user.user_id],
-          (error, results) => {
-            if (error) {
-              if (process.env.NODE_ENV === "development") {
-                res
-                  .status(500)
-                  .json({ msg: error.message, stack: error.stack });
-              } else {
-                res.status(500).json({ msg: "Error occurred!" });
-              }
-              return;
-            }
-            req.session.authenticated = true;
-            req.session.user = {
-              id: user.user_id,
-              username,
-              token: results.rows[0].token,
-            };
-            console.log(req.session);
-            res
-              .status(200)
-              .json({ msg: "Success", token: results.rows[0].token });
-          }
-        );
-      } else {
-        res.status(403).json({ msg: "Bad Credentials" });
-      }
+app.post("/login", async (req, res, next) => {
+  try {
+    const { username, password } = req.body;
+    // console.log(`${username}`);
+    const results = await pool.query(
+      "SELECT user_id, passwordhashed, username FROM login WHERE username = $1;",
+      [username]
+    );
+    const user = results.rows[0];
+    console.log(user);
+    if (!user) {
+      return res.status(404).json({ msg: "No user found!" });
     }
-  );
+    const match = await bcrypt.compare(password, user.passwordhashed);
+    if (match) {
+      const results = await pool.query(
+        "INSERT INTO token (user_id) VALUES ($1) RETURNING *;",
+        [user.user_id]
+      );
+      req.session.authenticated = true;
+      req.session.user = {
+        id: user.user_id,
+        username,
+        token: results.rows[0].token,
+      };
+      console.log(req.session);
+      return res
+        .status(200)
+        .json({ msg: "Success", token: results.rows[0].token });
+    } else {
+      return res.status(403).json({ msg: "Bad Credentials" });
+    }
+  } catch (error) {
+    next(error);
+  }
 });
 
 //PRODUCTS
@@ -563,7 +546,7 @@ WHERE login.user_id = $2
 //Sign up with username and password.
 // INSERT INTO carts a cart uuid for the newly made user uuid. (1 to 1 relationship between cart and user.)
 app.post("/register", async (req, res) => {
-  const { firstname, lastname, email, passwordhashed, username } = req.body;
+  const { firstname, lastname, email, password, username } = req.body;
 
   try {
     const results = await pool.query(
@@ -571,6 +554,15 @@ app.post("/register", async (req, res) => {
       [firstname, lastname, email]
     );
     const user_id = results.rows[0].id;
+
+    const saltRounds = 10;
+
+    //GOAL: ADD SALT AND HASH TO PW
+    //NEXT STEPS: USE BRCYPT COMPARE IN LOGIN
+
+    // Hash and salt password:
+    const passwordhashed = await bcrypt.hash(password, saltRounds);
+    console.log(passwordhashed);
 
     await pool.query(
       "INSERT INTO login (user_id, username, passwordhashed) VALUES ($1, $2, $3);",
@@ -612,6 +604,17 @@ app.post("/logout", ensureAuthentication, async (req, res) => {
 
 app.get("/ensureAuth", ensureAuthentication, (req, res) => {
   console.log("Ensure Auth");
+});
+
+app.use((err, req, res, next) => {
+  if (process.env.NODE_ENV === "development") {
+    res.status(500).json({
+      msg: err.message,
+      stack: err.stack,
+    });
+  } else {
+    res.status(500).json({ msg: "Error occurred!" });
+  }
 });
 
 if (require.main === module) {
