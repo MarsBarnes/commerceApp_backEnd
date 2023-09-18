@@ -6,14 +6,11 @@ require("dotenv").config();
 const session = require("express-session");
 const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
-// const passport = require("passport");
-// const LocalStrategy = require("passport-local").Strategy;
-
 const cors = require("cors");
 
 app.use(cors());
 
-// Use Helmet! Details on the headers Helmet sets: https://helmetjs.github.io/
+// Details on the headers Helmet sets: https://helmetjs.github.io/
 app.use(helmet());
 
 const pool = new Pool({
@@ -36,7 +33,6 @@ app.use(
 const store = new session.MemoryStore();
 
 // session middleware
-// console.log({ secret: process.env.secret });
 app.use(
   session({
     secret: process.env.secret,
@@ -49,13 +45,10 @@ app.use(
 );
 
 //ensure logged in
-// later add ensureAuthentication to the routes below that require login
 function ensureAuthentication(req, res, next) {
   const bearerHeader = req.headers.authorization;
   if (bearerHeader) {
-    // console.log("bearerHeader", bearerHeader);
     const token = bearerHeader.replace(/^Bearer /i, "");
-    // console.log("token", token);
     pool.query(
       "SELECT user_id, created_at FROM token WHERE token = $1::uuid",
       [token],
@@ -87,10 +80,8 @@ function ensureAuthentication(req, res, next) {
         const timeDifference = currentTime - tokenCreationTime;
 
         // Check if 1 hr (3,600,000 milliseconds) has elapsed
-        // if (timeDifference > 10000) {
         if (timeDifference > 3600000) {
           //delete old token
-          //use pool query
           pool.query(
             "DELETE FROM token WHERE token = $1::uuid",
             [token],
@@ -106,7 +97,7 @@ function ensureAuthentication(req, res, next) {
                 }
                 return;
               }
-              //REDIRECT TO LOGIN PAGE!!!
+              //Redirect to login page
               res.status(498).json({
                 msg: "Your session has expired. Please log in again.",
                 redirectToLogin: true,
@@ -116,7 +107,6 @@ function ensureAuthentication(req, res, next) {
           );
         } else {
           const user_id = results.rows[0].user_id;
-          // console.log("user_id", user_id);
           req.user_id = user_id;
           next();
         }
@@ -127,10 +117,6 @@ function ensureAuthentication(req, res, next) {
   }
 }
 
-//passport
-// app.use(passport.initialize());
-// app.use(passport.session());
-
 //root
 app.get("/", (req, res) => {
   res.send("Hello Worldtdtrdr");
@@ -140,13 +126,11 @@ app.get("/", (req, res) => {
 app.post("/login", async (req, res, next) => {
   try {
     const { username, password } = req.body;
-    // console.log(`${username}`);
     const results = await pool.query(
       "SELECT user_id, passwordhashed, username FROM login WHERE username = $1;",
       [username]
     );
     const user = results.rows[0];
-    // console.log(user);
     if (!user) {
       return res.status(404).json({ msg: "No user found!" });
     }
@@ -162,7 +146,6 @@ app.post("/login", async (req, res, next) => {
         username,
         token: results.rows[0].token,
       };
-      // console.log(req.session);
       return res
         .status(200)
         .json({ msg: "Success", token: results.rows[0].token });
@@ -187,7 +170,6 @@ app.get("/products", (req, res) => {
       return;
     }
     const products = results.rows;
-    // console.log(results);
     if (products.length < 1) {
       res.status(404).json({ msg: "No products found!" });
       return;
@@ -213,7 +195,6 @@ app.get("/products/:id", (req, res) => {
         return;
       }
       const product = results.rows[0];
-      // console.log(results);
       if (!product) {
         res.status(404).json({ msg: "No product found!" });
         return;
@@ -224,7 +205,6 @@ app.get("/products/:id", (req, res) => {
   );
 });
 
-//get requests can not have a body. will need to change all get requests with bodies to have params instead. or session/cookies
 //view all in cart
 app.get("/cart", ensureAuthentication, (req, res) => {
   const { user_id } = req;
@@ -244,7 +224,6 @@ app.get("/cart", ensureAuthentication, (req, res) => {
         return;
       }
       const cart = results.rows;
-      // console.log(results);
       if (!cart) {
         res.status(404).json({ msg: "No cart found!" });
         return;
@@ -265,8 +244,6 @@ app.post("/cart", ensureAuthentication, async (req, res) => {
       [user_id]
     );
     const cart_id = results.rows[0].id;
-    // console.log("cart_id", cart_id);
-    // console.log([user_id, cart_id, product_id, product_quantity]);
     await pool.query(
       `INSERT INTO users_carts (user_id, cart_id, product_id, product_quantity, price ) VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (user_id, cart_id, product_id)
@@ -290,8 +267,6 @@ app.post("/cart", ensureAuthentication, async (req, res) => {
 app.delete("/cart/:product_id", ensureAuthentication, (req, res) => {
   const { user_id } = req;
   const { product_id } = req.params;
-  // console.log("user_id", user_id);
-  // console.log("product_id", product_id);
   pool.query(
     "DELETE FROM users_carts WHERE user_id = $1 AND product_id = $2;",
     [user_id, product_id],
@@ -318,7 +293,6 @@ app.post("/cart/checkout", ensureAuthentication, async (req, res) => {
       [user_id]
     );
     const cart_checkout = results.rows;
-    // console.log(cart_checkout);
 
     //if cart is empty
     if (!cart_checkout[0]) {
@@ -333,24 +307,16 @@ app.post("/cart/checkout", ensureAuthentication, async (req, res) => {
     );
 
     const totalArray = array.rows;
-    // console.log(totalArray);
 
-    let total = 0; // Initialize total to 0
+    let total = 0; 
 
     totalArray.forEach((product) => {
       const productTotal =
         parseFloat(product.price.slice(1)) * product.product_quantity;
-      // console.log(
-      //   parseFloat(product.price.slice(1)),
-      //   product.product_quantity,
-      //   productTotal
-      // );
       total += productTotal;
     });
 
-    // console.log("Total Cost:", total);
-
-    //in a future rendition of this api, logic to handle payment processes will be inserted here
+    //TODO: in a future rendition of this api, logic to handle payment processes will be inserted here
     //if payment successful,
     //generates order id
     const results2 = await pool.query(
@@ -358,7 +324,6 @@ app.post("/cart/checkout", ensureAuthentication, async (req, res) => {
       [user_id, total]
     );
     const order_id = results2.rows[0].id;
-    // console.log(order_id);
 
     //add stuff from cart checkout to users orders using order id that was just made
     await pool.query(
@@ -412,11 +377,9 @@ app.get("/orders", ensureAuthentication, (req, res) => {
   );
 });
 
-//make this not a post, maybe a get?
 // View Orders details by order id
 app.get("/orders/:order_id", ensureAuthentication, (req, res) => {
   const { order_id } = req.params;
-  // console.log(order_id);
   const { user_id } = req;
   pool.query(
     `WITH OrderInfo AS (
@@ -443,7 +406,6 @@ JOIN products ON OrderInfo.product_id = products.id;
         return;
       }
       const order = results.rows;
-      // console.log(results);
       if (!order) {
         res.status(404).json({ msg: "No orders found!" });
         return;
@@ -474,7 +436,6 @@ app.get("/user", ensureAuthentication, (req, res) => {
         return;
       }
       const user = results.rows[0];
-      // console.log("results: " + user);
       if (!user) {
         res.status(404).json({ msg: "No user found!" });
         return;
@@ -490,7 +451,6 @@ app.post("/user", ensureAuthentication, (req, res) => {
   const { user_id } = req;
   const { firstname, lastname, email, username } = req.body;
   pool.query(
-    //  update the following to change frirstname, lastname, email in users table given info passed via user_id and req.body
     `
 UPDATE users
 SET
@@ -510,7 +470,6 @@ WHERE users.id = $1
         return;
       }
       pool.query(
-        //  update the following to change username in login table given user_ud passed via req
         `
 UPDATE login
 SET
@@ -528,7 +487,6 @@ WHERE login.user_id = $2
             return;
           }
           const user = results.rows;
-          // console.log(user);
           if (!user) {
             res.status(404).json({ msg: "Error!" });
             return;
@@ -541,9 +499,7 @@ WHERE login.user_id = $2
   );
 });
 
-//todo
-//add salt and hash
-//Sign up with username and password.
+// Sign up with username and password.
 // INSERT INTO carts a cart uuid for the newly made user uuid. (1 to 1 relationship between cart and user.)
 app.post("/register", async (req, res) => {
   const { firstname, lastname, email, password, username } = req.body;
@@ -557,12 +513,8 @@ app.post("/register", async (req, res) => {
 
     const saltRounds = 10;
 
-    //GOAL: ADD SALT AND HASH TO PW
-    //NEXT STEPS: USE BRCYPT COMPARE IN LOGIN
-
     // Hash and salt password:
     const passwordhashed = await bcrypt.hash(password, saltRounds);
-    // console.log(passwordhashed);
 
     await pool.query(
       "INSERT INTO login (user_id, username, passwordhashed) VALUES ($1, $2, $3);",
@@ -603,7 +555,6 @@ app.post("/logout", ensureAuthentication, async (req, res) => {
 });
 
 app.get("/ensureAuth", ensureAuthentication, (req, res) => {
-  // console.log("Ensure Auth");
 });
 
 app.use((err, req, res, next) => {
@@ -619,7 +570,7 @@ app.use((err, req, res, next) => {
 
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`Example app listening on port ${PORT}`);
+    console.log(`App listening on port ${PORT}`);
   });
 }
 
