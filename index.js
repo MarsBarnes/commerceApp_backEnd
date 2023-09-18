@@ -36,7 +36,7 @@ app.use(
 const store = new session.MemoryStore();
 
 // session middleware
-console.log({ secret: process.env.secret });
+// console.log({ secret: process.env.secret });
 app.use(
   session({
     secret: process.env.secret,
@@ -53,9 +53,9 @@ app.use(
 function ensureAuthentication(req, res, next) {
   const bearerHeader = req.headers.authorization;
   if (bearerHeader) {
-    console.log("bearerHeader", bearerHeader);
+    // console.log("bearerHeader", bearerHeader);
     const token = bearerHeader.replace(/^Bearer /i, "");
-    console.log("token", token);
+    // console.log("token", token);
     pool.query(
       "SELECT user_id, created_at FROM token WHERE token = $1::uuid",
       [token],
@@ -116,7 +116,7 @@ function ensureAuthentication(req, res, next) {
           );
         } else {
           const user_id = results.rows[0].user_id;
-          console.log("user_id", user_id);
+          // console.log("user_id", user_id);
           req.user_id = user_id;
           next();
         }
@@ -146,7 +146,7 @@ app.post("/login", async (req, res, next) => {
       [username]
     );
     const user = results.rows[0];
-    console.log(user);
+    // console.log(user);
     if (!user) {
       return res.status(404).json({ msg: "No user found!" });
     }
@@ -162,7 +162,7 @@ app.post("/login", async (req, res, next) => {
         username,
         token: results.rows[0].token,
       };
-      console.log(req.session);
+      // console.log(req.session);
       return res
         .status(200)
         .json({ msg: "Success", token: results.rows[0].token });
@@ -187,7 +187,7 @@ app.get("/products", (req, res) => {
       return;
     }
     const products = results.rows;
-    console.log(results);
+    // console.log(results);
     if (products.length < 1) {
       res.status(404).json({ msg: "No products found!" });
       return;
@@ -213,7 +213,7 @@ app.get("/products/:id", (req, res) => {
         return;
       }
       const product = results.rows[0];
-      console.log(results);
+      // console.log(results);
       if (!product) {
         res.status(404).json({ msg: "No product found!" });
         return;
@@ -244,7 +244,7 @@ app.get("/cart", ensureAuthentication, (req, res) => {
         return;
       }
       const cart = results.rows;
-      console.log(results);
+      // console.log(results);
       if (!cart) {
         res.status(404).json({ msg: "No cart found!" });
         return;
@@ -265,8 +265,8 @@ app.post("/cart", ensureAuthentication, async (req, res) => {
       [user_id]
     );
     const cart_id = results.rows[0].id;
-    console.log("cart_id", cart_id);
-    console.log([user_id, cart_id, product_id, product_quantity]);
+    // console.log("cart_id", cart_id);
+    // console.log([user_id, cart_id, product_id, product_quantity]);
     await pool.query(
       `INSERT INTO users_carts (user_id, cart_id, product_id, product_quantity, price ) VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (user_id, cart_id, product_id)
@@ -290,8 +290,8 @@ app.post("/cart", ensureAuthentication, async (req, res) => {
 app.delete("/cart/:product_id", ensureAuthentication, (req, res) => {
   const { user_id } = req;
   const { product_id } = req.params;
-  console.log("user_id", user_id);
-  console.log("product_id", product_id);
+  // console.log("user_id", user_id);
+  // console.log("product_id", product_id);
   pool.query(
     "DELETE FROM users_carts WHERE user_id = $1 AND product_id = $2;",
     [user_id, product_id],
@@ -318,7 +318,7 @@ app.post("/cart/checkout", ensureAuthentication, async (req, res) => {
       [user_id]
     );
     const cart_checkout = results.rows;
-    console.log(cart_checkout);
+    // console.log(cart_checkout);
 
     //if cart is empty
     if (!cart_checkout[0]) {
@@ -333,22 +333,22 @@ app.post("/cart/checkout", ensureAuthentication, async (req, res) => {
     );
 
     const totalArray = array.rows;
-    console.log(totalArray);
+    // console.log(totalArray);
 
     let total = 0; // Initialize total to 0
 
     totalArray.forEach((product) => {
       const productTotal =
         parseFloat(product.price.slice(1)) * product.product_quantity;
-      console.log(
-        parseFloat(product.price.slice(1)),
-        product.product_quantity,
-        productTotal
-      );
+      // console.log(
+      //   parseFloat(product.price.slice(1)),
+      //   product.product_quantity,
+      //   productTotal
+      // );
       total += productTotal;
     });
 
-    console.log("Total Cost:", total);
+    // console.log("Total Cost:", total);
 
     //in a future rendition of this api, logic to handle payment processes will be inserted here
     //if payment successful,
@@ -416,7 +416,7 @@ app.get("/orders", ensureAuthentication, (req, res) => {
 // View Orders details by order id
 app.get("/orders/:order_id", ensureAuthentication, (req, res) => {
   const { order_id } = req.params;
-  console.log(order_id);
+  // console.log(order_id);
   const { user_id } = req;
   pool.query(
     `WITH OrderInfo AS (
@@ -443,7 +443,7 @@ JOIN products ON OrderInfo.product_id = products.id;
         return;
       }
       const order = results.rows;
-      console.log(results);
+      // console.log(results);
       if (!order) {
         res.status(404).json({ msg: "No orders found!" });
         return;
@@ -474,7 +474,7 @@ app.get("/user", ensureAuthentication, (req, res) => {
         return;
       }
       const user = results.rows[0];
-      console.log("results: " + user);
+      // console.log("results: " + user);
       if (!user) {
         res.status(404).json({ msg: "No user found!" });
         return;
@@ -528,7 +528,7 @@ WHERE login.user_id = $2
             return;
           }
           const user = results.rows;
-          console.log(user);
+          // console.log(user);
           if (!user) {
             res.status(404).json({ msg: "Error!" });
             return;
@@ -562,7 +562,7 @@ app.post("/register", async (req, res) => {
 
     // Hash and salt password:
     const passwordhashed = await bcrypt.hash(password, saltRounds);
-    console.log(passwordhashed);
+    // console.log(passwordhashed);
 
     await pool.query(
       "INSERT INTO login (user_id, username, passwordhashed) VALUES ($1, $2, $3);",
@@ -603,7 +603,7 @@ app.post("/logout", ensureAuthentication, async (req, res) => {
 });
 
 app.get("/ensureAuth", ensureAuthentication, (req, res) => {
-  console.log("Ensure Auth");
+  // console.log("Ensure Auth");
 });
 
 app.use((err, req, res, next) => {
