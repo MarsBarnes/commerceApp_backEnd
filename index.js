@@ -117,10 +117,6 @@ function ensureAuthentication(req, res, next) {
   }
 }
 
-//root
-app.get("/", (req, res) => {
-  res.send("Hello Worldtdtrdr");
-});
 
 //login
 app.post("/login", async (req, res, next) => {
@@ -554,8 +550,6 @@ app.post("/logout", ensureAuthentication, async (req, res) => {
   }
 });
 
-app.get("/ensureAuth", ensureAuthentication, (req, res) => {
-});
 
 app.use((err, req, res, next) => {
   if (process.env.NODE_ENV === "development") {
