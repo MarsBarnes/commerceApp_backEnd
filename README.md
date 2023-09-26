@@ -33,34 +33,3 @@ Visit https://mars-apis.stoplight.io/docs/commerce-app/5o3sptj6bb4dj-commerce to
 
 ## Future Enhancements
 In future iterations of this project, I plan to implement a secure payment processing system to complete the shopping experience. Stay tuned for updates! Feel free to explore Sticker Shop and happy pretend shopping! 
-
-
-
-
-# List of User actions
-<!-- Sign up with username and password. 
-    Post /api/register
-        INSERT INTO carts a cart uuid for the newly made user uuid. (1 to 1 relationship between cart and user.) -->
-
-Sign in with username and password
-    Post /api/login
-
-View and update user account
-    Get /api/users
-
-Browse products
-    Get /api/products/:id
-    Get /api/products/
-
-View cart, add to cart, delete from cart
-    Get /api/cart
-    Post /api/cart
-    Delete /api/cart
-    
-Checkout cart
-    Post /api/checkout
-
-View Orders
-    Get /api/orders
-
-
