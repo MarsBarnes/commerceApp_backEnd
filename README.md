@@ -4,7 +4,7 @@
 Welcome to Sticker Shop, an e-commerce store where you can pretend to shop for your favorite stickers! This project is designed to showcase my skills as a software engineer and includes various features that allow users to interact with the online store. Please note that this online store, as it stands, does not currently process payments or engage in actual sales transactions. Instead, it serves as a demonstration of the code and technical skills I have developed for portfolio presentation. The code for the backend is located here in this repository. To see the frontend repository visit: https://github.com/MarsBarnes/commerceApp_frontEnd.
 
 ## API Documentation
-Visit https://mars-apis.stoplight.io/docs/commerce-app/5o3sptj6bb4dj-commerce to access comprehensive API endpoint documentation and explore the functionality of our application.
+Visit https://mars-apis.stoplight.io/docs/commerce-app/5o3sptj6bb4dj-commerce to access comprehensive API endpoint documentation and explore the functionality of this application.
 
 ## Features
 - Account Registration and Editing: Users can create an account or edit their existing account information.
