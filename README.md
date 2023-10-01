@@ -25,7 +25,6 @@ Visit https://mars-apis.stoplight.io/docs/commerce-app/5o3sptj6bb4dj-commerce to
 - Checkout Button: While payment processing is not included in this version, the checkout button allows you to proceed with your order, preparing it for future payment implementation.
 - Orders Page: Access a list of all your previous orders.
 - Order Details: Click on any specific order to view its details.
-- Dark and Light Mode: Enjoy the flexibility of switching between dark and light modes for a comfortable browsing experience.
 
 ## Technologies Used
 - Frontend: Built with React and styled using Bootstrap for a clean and responsive user interface. The frontend is deployed on Netlify.
